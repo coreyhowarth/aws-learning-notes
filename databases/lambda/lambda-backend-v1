@@ -1,0 +1,57 @@
+// Import AWS DynamoDB libraries
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
+
+// Create connection to AWS DynamoDB service
+const client = new DynamoDBClient({
+  region: "us-west-1"
+});
+
+// Create simplified DynamoDB client
+const docClient = DynamoDBDocumentClient.from(client);
+
+// Shared CORS headers
+const headers = {
+  "Access-Control-Allow-Origin": "https://awscoreyhowarth.com",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Methods": "GET, OPTIONS, HEAD"
+};
+
+// Main Lambda function
+export const handler = async (event) => {
+  try {
+    // Ask DynamoDB for all items in BMWModels
+    const command = new ScanCommand({
+      TableName: "BMWModels"
+    });
+
+    // Send request to DynamoDB
+    const response = await docClient.send(command);
+
+    // Use empty array if no items come back
+    const cars = response.Items || [];
+
+    // Sort oldest to newest
+    const sortedCars = cars.sort((a, b) => {
+      return Number(a.year) - Number(b.year);
+    });
+
+    // Return sorted cars to frontend
+    return {
+      statusCode: 200,
+      headers: headers,
+      body: JSON.stringify(sortedCars)
+    };
+
+  } catch (error) {
+    console.error("DynamoDB error:", error);
+
+    return {
+      statusCode: 500,
+      headers: headers,
+      body: JSON.stringify({
+        message: "Failed to load BMW data"
+      })
+    };
+  }
+};
